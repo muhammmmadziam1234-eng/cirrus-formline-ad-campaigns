@@ -1,4 +1,4 @@
-"""Editable art direction and PNG exporter for the Cirrus and Formline concepts."""
+"""Compose the Cirrus and Formline product advertisements from the studio renders."""
 
 import argparse
 import os
@@ -14,39 +14,30 @@ SCALE = 2
 RESAMPLE = Image.Resampling.LANCZOS
 WINDOWS_FONTS = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
 FONTS = {
-    "cirrus": ("bahnschrift.ttf", "arial.ttf", "DejaVuSans.ttf"),
-    "cirrus-bold": ("GOTHICB.TTF", "arialbd.ttf", "DejaVuSans-Bold.ttf"),
-    "formline": ("BOD_R.TTF", "times.ttf", "DejaVuSerif.ttf"),
-    "formline-bold": ("corbelb.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"),
-    "formline-text": ("corbel.ttf", "arial.ttf", "DejaVuSans.ttf"),
+    "sans": ("bahnschrift.ttf", "arial.ttf", "DejaVuSans.ttf"),
+    "bold": ("seguisb.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"),
+    "mono": ("consola.ttf", "DejaVuSansMono.ttf"),
+    "serif": ("BOD_R.TTF", "times.ttf", "DejaVuSerif.ttf"),
 }
 
 CIRRUS = {
-    "ground": "#0b1820",
-    "mat": "#12252d",
-    "type": "#ecf6f3",
-    "muted": "#adc3c6",
-    "accent": "#9ae9ce",
-    "rule": "#37535a",
-}
-FORMLINE = {
-    "paper": "#f3f1ed",
-    "mat": "#242421",
-    "ink": "#201e1b",
-    "muted": "#514941",
-    "accent": "#bf361f",
-    "rule": "#beb5a9",
+    "paper": "#e9f0e9",
+    "ink": "#142b2a",
+    "muted": "#3f5955",
+    "rule": "#91a7a0",
+    "jade": "#b4d8bf",
+    "dark": "#192a2f",
+    "light": "#e9f0e9",
 }
 
-# Crops are normalized source coordinates (left, top, right, bottom).
-# Each focal point is Pillow's alignment within the remaining crop range.
-PHOTOS = {
-    "cirrus-square-hero": {"focus": (0.50, 0.48)},
-    "cirrus-vertical-hero": {"focus": (0.50, 0.49)},
-    "cirrus-vertical-exploded": {"focus": (0.50, 0.50)},
-    "formline-square-hero": {"focus": (0.50, 0.50)},
-    "formline-vertical-hero": {"focus": (0.50, 0.50)},
-    "formline-vertical-detail": {"focus": (0.50, 0.50)},
+FORMLINE = {
+    "paper": "#f0e4d5",
+    "dark": "#201d1c",
+    "ink": "#261f1b",
+    "light": "#f8eee3",
+    "muted": "#4e3c33",
+    "accent": "#c44821",
+    "copper": "#fa8a59",
 }
 
 
@@ -62,9 +53,10 @@ def typeface(role, size):
 
 
 class Layout:
-    """Pixel-based page with baseline typography and supersampled artwork."""
+    """Lay out at double resolution and export with antialiased type and rules."""
 
     def __init__(self, height, ground):
+        self.height = height
         self.image = Image.new("RGB", (WIDTH * SCALE, height * SCALE), ground)
         self.draw = ImageDraw.Draw(self.image)
 
@@ -76,9 +68,15 @@ class Layout:
             joint="curve",
         )
 
-    def rect(self, x, y, w, h, fill):
+    def rect(self, x, y, width, height, fill):
         self.draw.rectangle(
-            (x * SCALE, y * SCALE, (x + w) * SCALE - 1, (y + h) * SCALE - 1),
+            (x * SCALE, y * SCALE, (x + width) * SCALE - 1, (y + height) * SCALE - 1),
+            fill=fill,
+        )
+
+    def circle(self, x, y, radius, fill):
+        self.draw.ellipse(
+            ((x-radius)*SCALE, (y-radius)*SCALE, (x+radius)*SCALE, (y+radius)*SCALE),
             fill=fill,
         )
 
@@ -90,129 +88,135 @@ class Layout:
         width = font.getlength(value) + max(len(value) - 1, 0) * gap
         if align == "right":
             start -= width
-        if start < 0 or start + width > WIDTH * SCALE:
-            raise ValueError(f"Text exceeds the canvas: {value!r}")
+        left, top, right, bottom = font.getbbox(value, anchor="ls")
+        if start + min(left, 0) < 0 or start + max(width, right) > WIDTH * SCALE:
+            raise ValueError(f"Text exceeds the canvas width: {value!r}")
+        if baseline + top < 0 or baseline + bottom > self.height * SCALE:
+            raise ValueError(f"Text exceeds the canvas height: {value!r}")
         if not tracking:
             self.draw.text((start, baseline), value, font=font, fill=fill, anchor="ls")
             return
         for index, char in enumerate(value):
-            prefix = value[: index + 1]
+            prefix = value[:index + 1]
             position = start + font.getlength(prefix) - font.getlength(char) + index * gap
             self.draw.text((position, baseline), char, font=font, fill=fill, anchor="ls")
 
-    def photo(self, image, box, treatment, mat):
-        x, y, w, h = box
-        settings = PHOTOS[treatment]
-        if "crop" in settings:
-            left, top, right, bottom = settings["crop"]
-            image = image.crop(
-                (
-                    round(left * image.width),
-                    round(top * image.height),
-                    round(right * image.width),
-                    round(bottom * image.height),
-                )
-            )
-        size = (w * SCALE, h * SCALE)
-        if settings.get("fit") == "contain":
-            fitted = ImageOps.contain(image, size, method=RESAMPLE)
-            center_x, center_y = settings["focus"]
-            left = round((size[0] - fitted.width) * center_x)
-            top = round((size[1] - fitted.height) * center_y)
-        else:
-            fitted = ImageOps.fit(image, size, method=RESAMPLE, centering=settings["focus"])
-            left = top = 0
-        plate = Image.new("RGBA", size, mat)
-        plate.alpha_composite(fitted, (left, top))
-        self.image.paste(plate.convert("RGB"), (x * SCALE, y * SCALE))
+    def photo(self, image, box, *, focus=(0.5, 0.5)):
+        """Use a crop only to fill the frame, without changing the source render."""
+        x, y, width, height = box
+        if min(x, y) < 0 or x + width > WIDTH or y + height > self.height:
+            raise ValueError(f"Photo exceeds the canvas: {box!r}")
+        fitted = ImageOps.fit(
+            image, (width*SCALE, height*SCALE), method=RESAMPLE, centering=focus
+        )
+        self.image.paste(fitted, (x*SCALE, y*SCALE))
 
     def finish(self):
-        return self.image.resize(
-            (self.image.width // SCALE, self.image.height // SCALE), RESAMPLE
+        return self.image.resize((WIDTH, self.height), RESAMPLE)
+
+
+def cirrus_mark(page):
+    c = CIRRUS
+    for offset in (0, 8, 16):
+        page.line(
+            [(53, 52+offset), (69, 52+offset), (76, 47+offset), (89, 47+offset)],
+            c["ink"],
+            3,
         )
-
-
-def cirrus_wordmark(page):
-    accent = CIRRUS["accent"]
-    page.line([(59, 50), (75, 50), (81, 45), (96, 45)], accent, 3)
-    page.line([(59, 58), (81, 58), (87, 53), (96, 53)], accent, 3)
-    page.line([(59, 66), (87, 66), (93, 61), (96, 61)], accent, 3)
-    page.text(111, 69, "Cirrus", "cirrus-bold", 37, CIRRUS["type"], tracking=-0.8)
-    page.text(
-        1022, 65, "Indoor environmental sensor", "cirrus", 23,
-        CIRRUS["muted"], align="right"
-    )
-    page.line([(58, 95), (1022, 95)], CIRRUS["rule"])
+    page.text(105, 74, "Cirrus", "bold", 38, c["ink"], tracking=-1.1)
+    page.text(1028, 71, "ENVIRONMENTAL SENSOR  /  C-01", "mono", 18, c["muted"], align="right")
+    page.line([(52, 101), (1028, 101)], c["rule"])
 
 
 def cirrus_square(hero):
     c = CIRRUS
-    page = Layout(1080, c["ground"])
-    cirrus_wordmark(page)
-    page.text(53, 238, "Read the air.", "cirrus", 126, c["type"], tracking=-4)
-    page.photo(hero, (58, 278, 964, 591), "cirrus-square-hero", c["mat"])
-    page.line([(58, 923), (1022, 923)], c["rule"])
-    page.rect(58, 957, 4, 65, c["accent"])
-    page.text(80, 982, "Get to know the air", "cirrus", 30, c["type"])
-    page.text(80, 1018, "in the spaces you use every day.", "cirrus", 30, c["type"])
+    page = Layout(1080, c["paper"])
+    cirrus_mark(page)
+    page.rect(418, 201, 610, 610, c["jade"])
+    page.photo(hero, (397, 180, 610, 610))
+
+    page.text(52, 243, "INDOOR AIR", "mono", 18, c["muted"], tracking=1.6)
+    page.text(47, 368, "Air", "bold", 122, c["ink"], tracking=-5)
+    page.text(46, 473, "in view.", "bold", 88, c["ink"], tracking=-4)
+    for y, text in (
+        (553, "A wall-mounted sensor"),
+        (591, "with a vented face and"),
+        (629, "a visible status light."),
+    ):
+        page.text(52, y, text, "sans", 26, c["muted"])
+    page.circle(59, 714, 6, "#4d8068")
+    page.line([(77, 714), (160, 714)], c["rule"])
+
+    page.rect(0, 865, 1080, 215, c["jade"])
+    page.text(52, 925, "A closer look at the enclosure", "bold", 28, c["ink"])
+    page.line([(52, 949), (1028, 949)], "#7a9c87")
+    for x, text in ((52, "Vented front"), (383, "Status indicator"), (713, "Wall cleat")):
+        page.text(x, 1010, text, "sans", 26, c["ink"])
     return page.finish()
 
 
 def cirrus_vertical(hero, exploded):
     c = CIRRUS
-    page = Layout(1350, c["ground"])
-    cirrus_wordmark(page)
-    page.text(53, 234, "Read the air.", "cirrus", 126, c["type"], tracking=-4)
-    page.text(59, 283, "Get to know the air indoors.", "cirrus", 29, c["muted"])
-    page.photo(hero, (58, 323, 964, 616), "cirrus-vertical-hero", c["mat"])
-    page.line([(58, 975), (1022, 975)], c["rule"])
-    page.rect(58, 1018, 4, 31, c["accent"])
-    page.text(75, 1044, "Inside Cirrus", "cirrus", 37, c["type"], tracking=-0.5)
-    page.text(58, 1091, "A closer look at the sensor", "cirrus", 24, c["muted"])
-    page.text(58, 1122, "and its enclosure.", "cirrus", 24, c["muted"])
-    page.photo(exploded, (440, 1002, 582, 277), "cirrus-vertical-exploded", c["mat"])
-    page.line([(58, 1300), (1022, 1300)], c["rule"])
+    page = Layout(1350, c["paper"])
+    cirrus_mark(page)
+    page.text(47, 244, "Air in view.", "bold", 132, c["ink"], tracking=-5.4)
+
+    page.rect(72, 311, 575, 575, c["jade"])
+    page.photo(hero, (52, 291, 575, 575))
+    page.text(691, 352, "A wall-mounted sensor", "bold", 28, c["ink"])
+    page.text(691, 391, "for indoor air.", "sans", 27, c["muted"])
+    for y, title, detail in (
+        (472, "Vented face", "Air intake at the front"),
+        (615, "Status light", "Visible on the enclosure"),
+        (758, "Wall cleat", "A separate mounting plate"),
+    ):
+        page.line([(691, y), (1028, y)], c["rule"])
+        page.text(691, y+53, title, "bold", 29, c["ink"])
+        page.text(691, y+90, detail, "sans", 24, c["muted"])
+
+    page.rect(0, 924, 1080, 426, c["dark"])
+    page.text(52, 998, "EXPLODED ASSEMBLY", "mono", 18, "#b4d8bf", tracking=1)
+    page.text(52, 1092, "Inside", "bold", 70, c["light"], tracking=-2)
+    page.text(52, 1170, "Cirrus.", "bold", 70, c["light"], tracking=-2)
+    page.text(54, 1258, "Housing, gasket, and board", "sans", 24, c["light"])
+    page.photo(exploded, (406, 945, 622, 395))
     return page.finish()
 
 
-def formline_wordmark(page):
+def formline_mark(page):
     f = FORMLINE
-    page.line([(57, 71), (73, 45), (97, 45)], f["accent"], 4)
-    page.rect(94, 41, 15, 8, f["accent"])
-    page.text(123, 68, "Formline", "formline-bold", 40, f["ink"], tracking=-1.3)
+    page.line([(53, 73), (68, 51), (90, 51)], f["copper"], 4)
+    page.rect(86, 47, 14, 8, f["copper"])
+    page.text(114, 75, "Formline", "bold", 35, f["light"], tracking=-0.9)
+    page.text(1028, 71, "ARTICULATED DESK LAMP", "mono", 18, f["light"], align="right")
 
 
 def formline_square(hero):
     f = FORMLINE
-    page = Layout(1080, f["paper"])
-    page.photo(hero, (447, 0, 633, 1080), "formline-square-hero", f["mat"])
-    formline_wordmark(page)
-    page.line([(57, 106), (403, 106)], f["rule"])
-    for y, value in ((321, "Put light"), (424, "in its"), (527, "place.")):
-        page.text(51, y, value, "formline", 99, f["ink"], tracking=-2)
-    page.rect(57, 917, 37, 4, f["accent"])
-    page.text(57, 974, "Articulated desk lamp", "formline-bold", 25, f["ink"])
-    page.text(57, 1014, "Angle the light for the task.", "formline-text", 26, f["muted"])
+    page = Layout(1080, f["dark"])
+    page.photo(hero, (0, 0, 1080, 890))
+    formline_mark(page)
+    page.rect(0, 881, 1080, 199, f["paper"])
+    page.rect(52, 921, 32, 4, f["accent"])
+    page.text(48, 1002, "Light follows your lead.", "serif", 82, f["ink"], tracking=-1.5)
+    page.text(52, 1044, "Adjust the arm and tilt the head to place the light.", "sans", 25, f["muted"])
     return page.finish()
 
 
 def formline_vertical(hero, detail):
     f = FORMLINE
-    page = Layout(1350, f["paper"])
-    page.photo(hero, (256, 349, 824, 1001), "formline-vertical-hero", f["mat"])
-    formline_wordmark(page)
-    page.text(
-        1022, 65, "Articulated desk lamp", "formline-bold", 25, f["ink"], align="right"
-    )
-    page.line([(57, 102), (1022, 102)], f["rule"])
-    page.text(50, 221, "Put light in", "formline", 110, f["ink"], tracking=-2.4)
-    page.text(51, 319, "its place.", "formline", 110, f["ink"], tracking=-2.4)
-    page.rect(57, 400, 35, 4, f["accent"])
-    page.text(57, 454, "Angle the light", "formline-text", 25, f["muted"])
-    page.text(57, 483, "for the task.", "formline-text", 25, f["muted"])
-    page.rect(50, 933, 306, 247, f["paper"])
-    page.photo(detail, (57, 940, 292, 233), "formline-vertical-detail", f["mat"])
-    page.text(57, 1211, "Hinge detail", "formline-bold", 22, f["ink"])
+    page = Layout(1350, f["dark"])
+    formline_mark(page)
+    page.line([(52, 102), (1028, 102)], "#645147")
+    page.text(48, 222, "Light follows your lead.", "serif", 94, f["light"], tracking=-1.7)
+    page.photo(hero, (52, 264, 976, 804))
+
+    page.rect(0, 1068, 1080, 282, f["paper"])
+    page.rect(52, 1110, 33, 4, f["accent"])
+    page.text(52, 1163, "A closer look", "serif", 49, f["ink"], tracking=-0.5)
+    page.text(53, 1220, "Twin arms and a pivoting head", "sans", 26, f["muted"])
+    page.text(53, 1255, "let you reposition the light.", "sans", 26, f["muted"])
+    page.photo(detail, (669, 1087, 359, 244), focus=(0.42, 0.72))
     return page.finish()
 
 
@@ -221,7 +225,7 @@ def read_render(folder, filename):
     for path in paths:
         if path.is_file():
             with Image.open(path) as image:
-                return ImageOps.exif_transpose(image).convert("RGBA")
+                return ImageOps.exif_transpose(image).convert("RGB")
     raise FileNotFoundError(f"Missing Blender render: {paths[0]} or {paths[1]}")
 
 
@@ -245,7 +249,7 @@ def main():
             detail = read_render(args.formline_dir, "detail.png")
             layouts["formline-square"] = formline_square(hero)
             layouts["formline-vertical"] = formline_vertical(hero, detail)
-    except OSError as error:
+    except (OSError, ValueError) as error:
         parser.exit(1, f"{error}\n")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)

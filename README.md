@@ -1,18 +1,18 @@
 # Cirrus and Formline product campaigns
 
-Two original fictional product campaigns built around editable Blender models. Each campaign has a square 1080 × 1080 placement and a portrait 1080 × 1350 placement with its own composition.
+Product advertising and art direction for two industrial design projects. Each campaign uses original Blender renders in a 1080 × 1080 square placement and a separately composed 1080 × 1350 portrait placement.
 
 <img src="exports/cirrus-square.png" alt="Cirrus square advertisement" width="420"> <img src="exports/formline-square.png" alt="Formline square advertisement" width="420">
 
 ## Cirrus
 
-**Read the air.** A cool palette frames the environmental sensor. The portrait places the enclosure and an exploded view together so the reader can see the assembly behind the silhouette.
+**Air in view.** A pale green layout frames the complete wall-mounted sensor. The portrait pairs its front face and mounting details with a full exploded assembly.
 
 [Square placement](exports/cirrus-square.png) · [Portrait placement](exports/cirrus-vertical.png) · [Blender project](https://github.com/muhammmmadziam1234-eng/cirrus-environment-sensor)
 
 ## Formline
 
-**Put light in its place.** A warm palette and a serif headline frame the articulated desk lamp. The portrait pairs the full lamp with a close view of a joint.
+**Light follows your lead.** Warm studio lighting shows the full lamp silhouette. The portrait places a joint close-up below the complete product to show how the lamp articulates.
 
 [Square placement](exports/formline-square.png) · [Portrait placement](exports/formline-vertical.png) · [Blender project](https://github.com/muhammmmadziam1234-eng/formline-articulated-lamp)
 
