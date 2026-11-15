@@ -1,5 +1,7 @@
 # Cirrus and Formline product campaigns
 
+[![Render](https://github.com/muhammmmadziam1234-eng/cirrus-formline-ad-campaigns/actions/workflows/render.yml/badge.svg?branch=main)](https://github.com/muhammmmadziam1234-eng/cirrus-formline-ad-campaigns/actions/workflows/render.yml)
+
 Product advertising and art direction for two industrial design projects. Each campaign uses original Blender renders in a 1080 × 1080 square placement, a separately composed 1080 × 1350 portrait placement, and a seven-second 1080 × 1920 story edit.
 
 <img src="exports/cirrus-square.png" alt="Cirrus square advertisement" width="420"> <img src="exports/formline-square.png" alt="Formline square advertisement" width="420">
