@@ -27,7 +27,7 @@ The edit gives the viewer the whole product first, then a detail worth pausing o
 
 ## Editable source and export
 
-[render_ads.py](render_ads.py) contains the layout, text, colors and crop settings. The source renders are included in [assets](assets). The exporter uses Pillow and locally installed fonts with system font fallbacks.
+[render_ads.py](render_ads.py) contains the layout, text, colors and crop settings. The source renders are included in [assets](assets). The exporter uses Pillow. The published files are set in Bahnschrift, Segoe UI Semibold, Consolas and Bodoni MT. Where one of those is not installed, an open typeface bundled in [fonts](fonts) stands in for it (Barlow, Selawik, Inconsolata or Bodoni Moda), so both scripts run without them and the type differs slightly from the published files.
 
 ~~~sh
 python -m pip install -r requirements.txt
@@ -35,6 +35,6 @@ python render_ads.py
 python render_stories.py
 ~~~
 
-Use `--campaign cirrus` or `--campaign formline` to export one family. `--cirrus-dir` and `--formline-dir` accept alternate render folders. The default output is `exports`, where the four sRGB PNGs are saved.
+Use `--campaign cirrus` or `--campaign formline` to export one family. `--cirrus-dir` and `--formline-dir` accept alternate render folders. The default output is `exports`, where the four sRGB PNGs are saved. Both scripts accept `--fonts bundled` to set everything in the bundled typefaces, which gives the same type on every machine.
 
 [render_stories.py](render_stories.py) contains the story copy, shot timing, crop animation, and per-video decode check. It exports H.264 MP4 at 24 fps with the storyboard and poster PNGs.

@@ -13,12 +13,22 @@ WIDTH = 1080
 SCALE = 2
 RESAMPLE = Image.Resampling.LANCZOS
 WINDOWS_FONTS = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
+FONT_DIR = HERE / "fonts"
+# Each role names the typeface of the published exports, then the open typeface
+# bundled in fonts/ that stands in for it where the first is not installed.
 FONTS = {
-    "sans": ("bahnschrift.ttf", "arial.ttf", "DejaVuSans.ttf"),
-    "bold": ("seguisb.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"),
-    "mono": ("consola.ttf", "DejaVuSansMono.ttf"),
-    "serif": ("BOD_R.TTF", "times.ttf", "DejaVuSerif.ttf"),
+    "sans": ("bahnschrift.ttf", "Barlow-Regular.ttf"),
+    "bold": ("seguisb.ttf", "Selawik-Semibold.ttf"),
+    "mono": ("consola.ttf", "Inconsolata-Variable.ttf"),
+    "serif": ("BOD_R.TTF", "BodoniModa-Variable.ttf"),
 }
+FONT_SOURCES = ("system", "bundled")
+font_source = "system"
+# Bodoni Moda sets about 8% wider than Bodoni MT, so it is scaled to keep the line
+# lengths. Its axes (weight, optical size) are held at a sturdy cut: the display
+# cuts have hairlines too fine to survive at these sizes.
+SERIF_FIT = 0.92
+SERIF_AXES = (400, 22)
 
 CIRRUS = {
     "paper": "#e9f0e9",
@@ -43,13 +53,21 @@ FORMLINE = {
 
 @lru_cache
 def typeface(role, size):
-    for name in FONTS[role]:
-        for candidate in (str(WINDOWS_FONTS / name), name):
+    installed, bundled = FONTS[role]
+    if font_source == "system":
+        for candidate in (str(WINDOWS_FONTS / installed), installed):
             try:
                 return ImageFont.truetype(candidate, size * SCALE)
             except OSError:
                 continue
-    return ImageFont.load_default(size=size * SCALE)
+    path = FONT_DIR / bundled
+    if not path.is_file():
+        raise FileNotFoundError(f"Missing bundled typeface: {path}")
+    if role != "serif":
+        return ImageFont.truetype(str(path), size * SCALE)
+    font = ImageFont.truetype(str(path), round(size * SCALE * SERIF_FIT))
+    font.set_variation_by_axes(list(SERIF_AXES))
+    return font
 
 
 class Layout:
@@ -235,7 +253,11 @@ def main():
     parser.add_argument("--cirrus-dir", type=Path, default=HERE / "assets" / "cirrus")
     parser.add_argument("--formline-dir", type=Path, default=HERE / "assets" / "formline")
     parser.add_argument("--output-dir", type=Path, default=HERE / "exports")
+    parser.add_argument("--fonts", choices=FONT_SOURCES, default="system",
+                        help="system: installed typefaces, bundled ones where missing; bundled: fonts/ only")
     args = parser.parse_args()
+    global font_source
+    font_source = args.fonts
 
     layouts = {}
     try:

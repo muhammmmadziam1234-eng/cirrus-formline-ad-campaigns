@@ -7,7 +7,8 @@ from pathlib import Path
 from imageio_ffmpeg import read_frames, write_frames
 from PIL import Image, ImageCms, ImageOps
 
-from render_ads import CIRRUS, FORMLINE, HERE, Layout, RESAMPLE, read_render
+import render_ads
+from render_ads import CIRRUS, FONT_SOURCES, FORMLINE, HERE, Layout, RESAMPLE, read_render
 
 
 SIZE = (1080, 1920)
@@ -133,7 +134,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--campaign", choices=("all", *STORIES), default="all")
     parser.add_argument("--output-dir", type=Path, default=HERE / "exports")
+    parser.add_argument("--fonts", choices=FONT_SOURCES, default="system",
+                        help="system: installed typefaces, bundled ones where missing; bundled: fonts/ only")
     args = parser.parse_args()
+    render_ads.font_source = args.fonts
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for campaign in STORIES if args.campaign == "all" else (args.campaign,):
         export_campaign(campaign, args.output_dir)
