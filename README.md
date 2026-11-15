@@ -38,3 +38,5 @@ python render_stories.py
 Use `--campaign cirrus` or `--campaign formline` to export one family. `--cirrus-dir` and `--formline-dir` accept alternate render folders. The default output is `exports`, where the four sRGB PNGs are saved. Both scripts accept `--fonts bundled` to set everything in the bundled typefaces, which gives the same type on every machine.
 
 [render_stories.py](render_stories.py) contains the story copy, shot timing, crop animation, and per-video decode check. It exports H.264 MP4 at 24 fps with the storyboard and poster PNGs.
+
+© 2026 muhammmmadziam1234-eng. All rights reserved, except the typefaces in [fonts](fonts), which keep their own licences.
